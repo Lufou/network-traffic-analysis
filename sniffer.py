@@ -25,12 +25,16 @@ def process_packet(packet):
     plt.title('Real-time Network Traffic Analysis')
     plt.pause(0.01)  
 
-sniff(prn=process_packet, store=0)  
+def stop_sniffing(signal, frame):
+    print("CTRL+C detected. Stopping sniffing...")
+    total_time = time.time() - start_time
+    average_time_per_packet = total_time / packet_count if packet_count > 0 else 0
+    print(f'Total time: {total_time} seconds')
+    print(f'Average time per packet: {average_time_per_packet} seconds')
+    plt.show()
+    exit(0)
 
-total_time = time.time() - start_time
-average_time_per_packet = total_time / packet_count if packet_count > 0 else 0
+import signal
+signal.signal(signal.SIGINT, stop_sniffing)
 
-print(f'Total time: {total_time} seconds')
-print(f'Average time per packet: {average_time_per_packet} seconds')
-
-plt.show()
+sniff(prn=process_packet, store=0)

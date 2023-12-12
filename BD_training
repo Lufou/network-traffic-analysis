@@ -34,7 +34,8 @@ training_data = pd.concat([normal_data, attack_data], ignore_index=True)
 training_data = training_data.sample(frac=1).reset_index(drop=True)
 
 # Affichage des premières lignes du DataFrame
-print(training_data.head())
+print(training_data)
 
 # Enregistrement du DataFrame dans un fichier CSV
 training_data.to_csv('training_data.csv', index=False)
+training_data.to_csv('C:/Users/desou/training_data.csv', index=False)

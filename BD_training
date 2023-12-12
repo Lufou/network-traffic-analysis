@@ -1,0 +1,40 @@
+import pandas as pd
+import numpy as np
+
+# Fonction pour générer des données normales (catégorie 0)
+def generate_normal_data(num_samples):
+    normal_data = {
+        'Src_IP': np.random.choice(['192.168.1.1', '192.168.1.2'], num_samples),
+        'Dst_IP': np.random.choice(['10.0.0.1', '10.0.0.2'], num_samples),
+        'Protocol': np.random.choice(['HTTP', 'FTP', 'TCP', 'UDP'], num_samples),
+        'Label': 0  # Catégorie normale
+    }
+    return pd.DataFrame(normal_data)
+
+# Fonction pour générer des données anormales (catégorie 1, attaque DoS ou DDoS)
+def generate_attack_data(num_samples):
+    attack_data = {
+        'Src_IP': np.random.choice(['192.168.1.3', '192.168.1.4'], num_samples),
+        'Dst_IP': '10.0.0.1',  # Destination commune pour l'attaque
+        'Protocol': np.random.choice(['ICMP', 'UDP-Flood', 'TCP-SYN-Flood'], num_samples),
+        'Label': 1  # Catégorie anormale (attaque)
+    }
+    return pd.DataFrame(attack_data)
+
+# Génération de données normales
+normal_data = generate_normal_data(1000)
+
+# Génération de données anormales (attaque DoS ou DDoS)
+attack_data = generate_attack_data(200)
+
+# Concaténation des deux catégories pour créer la base de données complète
+training_data = pd.concat([normal_data, attack_data], ignore_index=True)
+
+# Mélanger les données pour garantir un ordre aléatoire
+training_data = training_data.sample(frac=1).reset_index(drop=True)
+
+# Affichage des premières lignes du DataFrame
+print(training_data.head())
+
+# Enregistrement du DataFrame dans un fichier CSV
+training_data.to_csv('training_data.csv', index=False)

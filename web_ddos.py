@@ -3426,11 +3426,11 @@ def httpcall(url, packets, lock):
 			'Connection': 'keep-alive',
 			'Host':host
 		}
-		request = urllib3.PoolManager().request("GET", url + param_joiner + buildblock(random.randint(3,10)) + '=' + buildblock(random.randint(3,10)), headers=headers)
+		request = urllib3.request("GET", url + param_joiner + buildblock(random.randint(3,10)) + '=' + buildblock(random.randint(3,10)), headers=headers)
 		with lock:
 			packets.value += 1
 	except Exception as e:
-		print(e)
+		pass
 	try:
 			urllib3.urlopen(request)
 	except urllib3.HTTPError as e:

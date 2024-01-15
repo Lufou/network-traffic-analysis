@@ -129,7 +129,7 @@ class DDoSDetector:
 
 				time_start_predict = time.time()
 				#feeds input data and output data into the neural network
-				predicted_label = self.neural_network.predict(dataset_index, latest_packet)
+				predicted_label = self.neural_network.predict(dataset_index, normalized_input)
 				time_end_predict = time.time()
 				time_elapsed_predict = time_end_predict - time_start_predict
 				print("pps : "+str(len(normalized_input)/10))

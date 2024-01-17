@@ -13,6 +13,9 @@ from ANN import ANN
 import threading
 import asyncio
 from scapy.all import sniff, wrpcap
+import warnings
+from sklearn.exceptions import InconsistentVersionWarning
+warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
 
 
 class DDoSDetector:

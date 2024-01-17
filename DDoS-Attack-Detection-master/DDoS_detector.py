@@ -14,6 +14,7 @@ import threading
 import asyncio
 from scapy.all import sniff, wrpcap
 
+
 class DDoSDetector:
 
 	#DataHandler class object
@@ -24,12 +25,14 @@ class DDoSDetector:
 	must_clear = False
 	captured_packets = None
 	stats_file = None
+	stop_capture_thread = None
 
 	def __init__(self):
 		self.data_handler = DataHandler()
 		self.neural_network = ANN()
 		self.captured_packets = []
 		self.must_clear = False
+		self.stop_capture_thread = threading.Event()
 		if not os.path.isdir("./Stats"):
 			os.mkdir("./Stats")
 		self.stats_file = open(f"./Stats/{time.strftime('%Y%m%d%H%M%S')}.csv", 'w')
@@ -152,12 +155,14 @@ class DDoSDetector:
 		except KeyboardInterrupt:
 			print("Arret de la capture...")
 			self.stats_file.close()
+			self.stop_capture_thread.set()
 
 
 	def capture_live_traffic(self, interface):
 			asyncio.set_event_loop(asyncio.new_event_loop())
 			if not self.must_clear:
-				sniff(prn=lambda x: self.captured_packets.append(x), iface=interface)
+				sniff(prn=lambda x: self.captured_packets.append(x), iface=interface, stop_filter=lambda x: self.stop_capture_thread.is_set())
+
 
 	def save_live_packets_to_pcap(self):
 		latest_pcap_path = f"./Live/captured_live_packets_{time.strftime('%Y%m%d%H%M%S')}.pcap"

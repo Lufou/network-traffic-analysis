@@ -21,6 +21,7 @@ from keras.layers import LSTM
 from keras.layers import LeakyReLU
 from keras.layers import PReLU
 from keras.layers import Bidirectional
+import tensorflow as tf
 
 from data_handler import DataHandler
 
@@ -135,8 +136,7 @@ class ANN:
 
 
 	#model predicts labels, and results are saved to a csv
-	def predict(self, dataset_index, input_data):
-
+	def predict(self, dataset_index, input_data, callbacks=None):
 		#splits data into train and test datasets for cross validation
 		input_data = np.array(input_data)
 
@@ -152,7 +152,7 @@ class ANN:
 
 
 		# Predicting the Test set results
-		y_pred = model.predict(input_data)
+		y_pred = model.predict(input_data, callbacks=callbacks)
 
 
 

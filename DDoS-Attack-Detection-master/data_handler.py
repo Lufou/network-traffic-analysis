@@ -66,10 +66,14 @@ class DataHandler:
 	#returns normalized input data 
 	def get_live_input_data(self, pcap_path):
 		if pcap_path=="":
+			print("Invalid pcap path")
 			return
 
 
 		data = self.pcap_handler.read_pcap(pcap_path)
+		if len(data) == 0:
+			print("No packets in pcap file")
+			return
 
 		compressed_packets = self.compress_packets(data)
 		input_data = self.generate_input_data(compressed_packets)

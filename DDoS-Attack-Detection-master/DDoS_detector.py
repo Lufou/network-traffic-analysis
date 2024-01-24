@@ -44,6 +44,7 @@ class DDoSDetector:
 	captured_packets = None
 	stats_file = None
 	stop_capture_thread = None
+	perf = None
 
 	def __init__(self):
 		self.data_handler = DataHandler()
@@ -54,6 +55,7 @@ class DDoSDetector:
 		if not os.path.isdir("./Stats"):
 			os.mkdir("./Stats")
 		self.stats_file = open(f"./Stats/{time.strftime('%Y%m%d%H%M%S')}.csv", 'w')
+		self.perf = PerformanceCallback()
 
 
 	def train(self, dataset_index, pcap_index=None):
@@ -131,11 +133,16 @@ class DDoSDetector:
 		interface = input("Enter interface name: ")
 		if not os.path.isdir("./Live"):
 			os.mkdir("./Live")
+		while True:
+			TIME_BATCH_SIZE = input("Enter time batch size (seconds): ")
+			try:
+				TIME_BATCH_SIZE = int(TIME_BATCH_SIZE)
+				break
+			except ValueError:
+				print("Invalid time batch size")
 		capture_thread = threading.Thread(target=self.capture_live_traffic, args=(interface,))
 		capture_thread.start()
 		self.stats_file.write("pps,time to predict\n")
-		TIME_BATCH_SIZE = 1
-
 		try:
 			while True:
 				time.sleep(TIME_BATCH_SIZE)
@@ -150,25 +157,30 @@ class DDoSDetector:
 				#returns normalized input data from the specified pcap path
 				normalized_input = self.data_handler.get_live_input_data(latest_pcap_path)
 
-				print("Num packets: "+str(len(normalized_input)))
-
-				latest_packet = [normalized_input[-1]]
-
-				#feeds input data and output data into the neural network
-				perf = PerformanceCallback()
-				predicted_label = self.neural_network.predict(dataset_index, normalized_input, callbacks=[perf])
-	
-				time_elapsed_predict = perf.total_time
-				pps = len(normalized_input)/TIME_BATCH_SIZE
-				print("pps : "+str(pps))
-				print("--- %s ms to predict ---" % (time_elapsed_predict/1000000))
-				self.stats_file.write(f"{str(pps)},{time_elapsed_predict/1000000}\n")
-				if len(predicted_label) > 0:
-					predicted_label = predicted_label[-1][0]
-
-					print("Predicted label: "+str(predicted_label))
+				if (normalized_input is None):
+					print("Num packets: 0")
+					print("pps : 0")
+					self.stats_file.write(f"0,0\n")
 				else:
-					print("No predictions for live data")
+					print("Num packets: "+str(len(normalized_input)))
+
+					latest_packet = [normalized_input[-1]]
+
+					#feeds input data and output data into the neural network
+					
+					predicted_label = self.neural_network.predict(dataset_index, normalized_input, callbacks=[self.perf])
+		
+					time_elapsed_predict = self.perf.total_time
+					pps = len(normalized_input)/TIME_BATCH_SIZE
+					print("pps : "+str(pps))
+					print("--- %s ms to predict ---" % (time_elapsed_predict/1000000))
+					self.stats_file.write(f"{str(pps)},{time_elapsed_predict/1000000}\n")
+					if len(predicted_label) > 0:
+						predicted_label = predicted_label[-1][0]
+
+						print("Predicted label: "+str(predicted_label))
+					else:
+						print("No predictions for live data")
 				os.remove(latest_pcap_path)
 				print()
 		except KeyboardInterrupt:

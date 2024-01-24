@@ -16,7 +16,22 @@ from scapy.all import sniff, wrpcap
 import warnings
 from sklearn.exceptions import InconsistentVersionWarning
 warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+from keras.callbacks import Callback
 
+class PerformanceCallback(Callback):
+		total_time = 0
+		time_per_step = 0
+
+		def on_predict_begin(self, logs=None):
+			self.start_time = time.time_ns()
+			self.steps = 0
+
+		def on_predict_batch_end(self, batch, logs=None):
+			self.steps += 1
+
+		def on_predict_end(self, logs=None):
+			self.total_time = time.time_ns() - self.start_time
+			self.time_per_step = self.total_time / self.steps if self.steps > 0 else 0
 
 class DDoSDetector:
 
@@ -119,7 +134,7 @@ class DDoSDetector:
 		capture_thread = threading.Thread(target=self.capture_live_traffic, args=(interface,))
 		capture_thread.start()
 		self.stats_file.write("pps,time to predict\n")
-		TIME_BATCH_SIZE = 5
+		TIME_BATCH_SIZE = 1
 
 		try:
 			while True:
@@ -139,21 +154,22 @@ class DDoSDetector:
 
 				latest_packet = [normalized_input[-1]]
 
-				time_start_predict = time.time()
 				#feeds input data and output data into the neural network
-				predicted_label = self.neural_network.predict(dataset_index, normalized_input)
-				time_end_predict = time.time()
-				time_elapsed_predict = time_end_predict - time_start_predict
+				perf = PerformanceCallback()
+				predicted_label = self.neural_network.predict(dataset_index, normalized_input, callbacks=[perf])
+	
+				time_elapsed_predict = perf.total_time
 				pps = len(normalized_input)/TIME_BATCH_SIZE
 				print("pps : "+str(pps))
-				print("--- %s seconds to predict ---" % (time_elapsed_predict))
-				self.stats_file.write(f"{str(pps)},{time_elapsed_predict}\n")
+				print("--- %s ms to predict ---" % (time_elapsed_predict/1000000))
+				self.stats_file.write(f"{str(pps)},{time_elapsed_predict/1000000}\n")
 				if len(predicted_label) > 0:
 					predicted_label = predicted_label[-1][0]
 
 					print("Predicted label: "+str(predicted_label))
 				else:
 					print("No predictions for live data")
+				os.remove(latest_pcap_path)
 				print()
 		except KeyboardInterrupt:
 			print("Arret de la capture...")

@@ -21,7 +21,6 @@ from keras.layers import LSTM
 from keras.layers import LeakyReLU
 from keras.layers import PReLU
 from keras.layers import Bidirectional
-import tensorflow as tf
 
 from data_handler import DataHandler
 

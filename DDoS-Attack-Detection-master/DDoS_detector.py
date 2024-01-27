@@ -133,6 +133,9 @@ class DDoSDetector:
 		interface = input("Enter interface name: ")
 		if not os.path.isdir("./Live"):
 			os.mkdir("./Live")
+		for file in os.listdir("./Live"):
+			if file.endswith(".pcap"):
+				os.remove("./Live/"+file)
 		while True:
 			TIME_BATCH_SIZE = input("Enter time batch size (seconds): ")
 			try:
@@ -187,6 +190,9 @@ class DDoSDetector:
 			print("Arret de la capture...")
 			self.stats_file.close()
 			self.stop_capture_thread.set()
+			for file in os.listdir("./Live"):
+				if file.endswith(".pcap"):
+					os.remove("./Live/"+file)
 
 
 	def capture_live_traffic(self, interface):

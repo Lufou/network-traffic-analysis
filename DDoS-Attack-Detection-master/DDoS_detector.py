@@ -14,9 +14,10 @@ import threading
 import asyncio
 from scapy.all import sniff, wrpcap
 import warnings
-from sklearn.exceptions import InconsistentVersionWarning
-warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
-from keras.callbacks import Callback
+#from sklearn.exceptions import InconsistentVersionWarning
+#warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+from tensorflow import keras
+Callback = keras.callbacks.Callback
 
 class PerformanceCallback(Callback):
 		total_time = 0

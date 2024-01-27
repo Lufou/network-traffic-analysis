@@ -150,9 +150,7 @@ class DDoSDetector:
 		try:
 			while True:
 				time.sleep(TIME_BATCH_SIZE)
-				latest_pcap_path = self.save_live_packets_to_pcap()
 
-				#returns normalized input data from the specified pcap path
 				self.must_clear = True
 				normalized_input = self.data_handler.get_live_input_data(self.captured_packets)
 				self.captured_packets.clear()
@@ -182,7 +180,6 @@ class DDoSDetector:
 						print("Predicted label: "+str(predicted_label))
 					else:
 						print("No predictions for live data")
-				os.remove(latest_pcap_path)
 				print()
 		except KeyboardInterrupt:
 			print("Arret de la capture...")

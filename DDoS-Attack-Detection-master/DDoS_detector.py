@@ -200,7 +200,7 @@ class DDoSDetector:
 		latest_pcap_path = f"./Live/captured_live_packets_{time.strftime('%Y%m%d%H%M%S')}.pcap"
 		self.must_clear = True
 		wrpcap(latest_pcap_path, self.captured_packets)
-		print(f"Paquets enregistrés dans {latest_pcap_path}")
+		print(f"Packets saved in {latest_pcap_path}")
 
 		# Supprimez les paquets après les avoir enregistrés
 		self.captured_packets.clear()

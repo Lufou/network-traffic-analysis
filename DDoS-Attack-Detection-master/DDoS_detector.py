@@ -24,14 +24,14 @@ class PerformanceCallback(Callback):
 		time_per_step = 0
 
 		def on_predict_begin(self, logs=None):
-			self.start_time = time.time_ns()
+			self.start_time = time.clock_gettime(time.CLOCK_MONOTONIC_RAW) * 1e9
 			self.steps = 0
 
 		def on_predict_batch_end(self, batch, logs=None):
 			self.steps += 1
 
 		def on_predict_end(self, logs=None):
-			self.total_time = time.time_ns() - self.start_time
+			self.total_time = time.clock_gettime(time.CLOCK_MONOTONIC_RAW) * 1e9 - self.start_time
 			self.time_per_step = self.total_time / self.steps if self.steps > 0 else 0
 
 class DDoSDetector:

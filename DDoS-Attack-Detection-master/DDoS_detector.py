@@ -152,14 +152,11 @@ class DDoSDetector:
 				time.sleep(TIME_BATCH_SIZE)
 				latest_pcap_path = self.save_live_packets_to_pcap()
 
-				if latest_pcap_path=="":
-					print("There is no pcap file to predict from")
-					return
-
-				print("Latest pcap path: "+str(latest_pcap_path))
-
 				#returns normalized input data from the specified pcap path
-				normalized_input = self.data_handler.get_live_input_data(latest_pcap_path)
+				self.must_clear = True
+				normalized_input = self.data_handler.get_live_input_data(self.captured_packets)
+				self.captured_packets.clear()
+				self.must_clear = False
 
 				if (normalized_input is None):
 					print("Num packets: 0")
@@ -195,26 +192,10 @@ class DDoSDetector:
 				if file.endswith(".pcap"):
 					os.remove("./Live/"+file)
 
-
 	def capture_live_traffic(self, interface):
 			asyncio.set_event_loop(asyncio.new_event_loop())
 			if not self.must_clear:
 				sniff(prn=lambda x: self.captured_packets.append(x), iface=interface, stop_filter=lambda x: self.stop_capture_thread.is_set())
-
-
-	def save_live_packets_to_pcap(self):
-		latest_pcap_path = f"./Live/captured_live_packets_{time.strftime('%Y%m%d%H%M%S')}.pcap"
-		self.must_clear = True
-		wrpcap(latest_pcap_path, self.captured_packets)
-		print(f"Packets saved in {latest_pcap_path}")
-
-		# Supprimez les paquets après les avoir enregistrés
-		self.captured_packets.clear()
-		self.must_clear = False
-
-		return latest_pcap_path
-
-
 
 if __name__=="__main__":
 

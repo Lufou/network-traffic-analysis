@@ -13,14 +13,14 @@ import numpy as np
 
 # Importing the Keras libraries and packages
 from tensorflow import keras
-from keras.models import Sequential
-from keras.models import load_model
-from keras.layers import Dense
-from keras.layers import Dropout
-from keras.layers import LSTM
-from keras.layers import LeakyReLU
-from keras.layers import PReLU
-from keras.layers import Bidirectional
+Sequential = keras.models.Sequential
+load_model = keras.models.load_model
+Dense = keras.layers.Dense
+Dropout = keras.layers.Dropout
+LSTM = keras.layers.LSTM
+LeakyReLU = keras.layers.LeakyReLU
+PReLU = keras.layers.PReLU
+Bidirectional = keras.layers.Bidirectional
 
 from data_handler import DataHandler
 

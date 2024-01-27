@@ -191,6 +191,9 @@ class DDoSDetector:
 			print("Arret de la capture...")
 			self.stats_file.close()
 			self.stop_capture_thread.set()
+			for file in os.listdir("./Live"):
+				if file.endswith(".pcap"):
+					os.remove("./Live/"+file)
 
 
 	def capture_live_traffic(self, interface):

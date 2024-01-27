@@ -134,6 +134,9 @@ class DDoSDetector:
 		interface = input("Enter interface name: ")
 		if not os.path.isdir("./Live"):
 			os.mkdir("./Live")
+		for file in os.listdir("./Live"):
+			if file.endswith(".pcap"):
+				os.remove("./Live/"+file)
 		while True:
 			TIME_BATCH_SIZE = input("Enter time batch size (seconds): ")
 			try:

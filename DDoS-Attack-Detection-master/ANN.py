@@ -12,7 +12,7 @@ import time
 import numpy as np
 
 # Importing the Keras libraries and packages
-import keras
+from tensorflow import keras
 from keras.models import Sequential
 from keras.models import load_model
 from keras.layers import Dense
